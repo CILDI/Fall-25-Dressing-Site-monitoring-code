@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment / Secrets
+.env
+cli-detection-project-d26e28260ebe.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Virtual environments
+venv/
+env/
+
+*.png
+*.jpg
+*.jpeg
