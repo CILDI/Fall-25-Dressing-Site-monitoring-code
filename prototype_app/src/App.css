@@ -1,0 +1,22 @@
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+@media (max-width: 600px) {
+  table, thead, tbody, th, td, tr {
+    display: block;
+  }
+  tr { margin-bottom: 10px; }
+  th { display: none; }
+  td { display: flex; justify-content: space-between; }
+  td::before {
+    content: attr(data-label);
+    font-weight: bold;
+  }
+}
