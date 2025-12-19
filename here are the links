@@ -1,0 +1,7 @@
+html github host link: https://beefstew45.github.io/nurse-app/
+react link: https://supabase-realtime-table.vercel.app
+
+heads up the react link is more functional and advanced it includes the catheter as a display option however it might not work once i remove the host files from my personal computer. its likely you will have to re set up the react just ask google to help with instructions and i provided all the files youll need 
+the index.html does all the display you just have to link it to the supabase
+
+the .env file holds all of the keys that the code needs to access the supabase 
