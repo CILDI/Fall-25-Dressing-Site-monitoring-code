@@ -1,0 +1,25 @@
+from inference_sdk import InferenceHTTPClient
+import os
+from dotenv import load_dotenv
+"""
+Just making sure Roboflow is working
+"""
+
+load_dotenv()
+
+# We pull these directly from your .env to be sure
+api_url = "https://serverless.roboflow.com"
+api_key = os.getenv("ROBOFLOW_API_KEY")
+
+client = InferenceHTTPClient(
+    api_url=api_url,
+    api_key=api_key
+)
+
+try:
+    # This is a valid method that checks your workspace access
+    models = client.list_models()
+    print("✅ Success! Roboflow is linked correctly.")
+    print(f"Models available in your workspace: {models}")
+except Exception as e:
+    print(f"❌ Actual Link Failure: {e}")

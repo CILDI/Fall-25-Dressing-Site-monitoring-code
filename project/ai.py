@@ -2,13 +2,18 @@
 import cv2
 import base64
 import tempfile
+import os
 from inference_sdk import InferenceHTTPClient
 
-# Initialize Roboflow client
-CLIENT = InferenceHTTPClient(
-    api_url="https://serverless.roboflow.com",
-    api_key="Gl3Piz2o3nvjnAVyTJvT"
-)
+# Initialize Roboflow client 
+
+CLIENT = InferenceHTTPClient( 
+
+    api_url="https://serverless.roboflow.com", 
+
+    api_key="Gl3Piz2o3nvjnAVyTJvT" 
+
+) 
 
 
 def inference_helper(frame):
@@ -35,8 +40,9 @@ def inference_helper(frame):
     print("DEBUG: Type passed to infer():", type(temp_path))
 
     # Run inference using file path
-    result_json = CLIENT.infer(temp_path, model_id="my-first-project-x5u0k/12")
-
+    #import os #its at the beginning
+    model_id = os.getenv("ROBOFLOW_MODEL_ID")
+    result_json = CLIENT.infer(temp_path, model_id=model_id)
     # Check for annotated image bytes in response (Roboflow sometimes returns 'annotated_image')
     annotated_image_bytes = None
     if "annotated_image" in result_json:

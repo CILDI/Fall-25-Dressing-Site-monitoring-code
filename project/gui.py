@@ -9,7 +9,9 @@ from datetime import datetime
 import time
 from dotenv import load_dotenv
 from ai import inference_helper
-from uploader import upload_frame_to_supabase, upload_metadata_to_supabase
+from uploader import upload_frame_to_supabase, upload_metadata_to_supabase, get_latest_metadata
+from analysis import format_and_calculate_trends
+
 
 
 
@@ -22,6 +24,11 @@ def launch_gui():
 
     # Camera: Channel 0 for built-in camera, 1 for USB/Bluetooth
     cap = cv2.VideoCapture(0)
+    #
+    # -----------------------------------------------
+    # channel 0 and disable built-in camera !!!!!
+    # ------------------------------------------------
+    
 
 
     video_label = tk.Label(window)
@@ -65,9 +72,23 @@ def launch_gui():
 
         # Do network tasks in a new thread
         def worker():
+            # Heartbeat logging to find the hang-point
+            now = lambda: datetime.now().strftime('%H:%M:%S')
+            print(f"DEBUG [{now()}] Worker: Starting metadata fetch...")
             try:
-                # Run AI inference (returns JSON, annotated_image_bytes, and encoded buffer)
-                result_json, annotated_image_bytes, encoded_buffer = inference_helper(frame)
+                patient_id = os.getenv("PATIENT_ID", "test_patient_001")
+                last_json = get_latest_metadata(patient_id)
+                
+                print(f"DEBUG [{now()}] Worker: Starting AI Inference...")
+                # old line
+                #result_json, annotated_image_bytes, encoded_buffer = inference_helper(frame)
+
+                # NEW ENSEMBLE LINE
+                from ensemble_ai import get_unified_inference
+                result_json, annotated_image_bytes, encoded_buffer = get_unified_inference(frame)
+
+                print(f"DEBUG [{now()}] Worker: AI Complete. Printing report...")
+                format_and_calculate_trends(result_json, last_json)
 
 
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -79,6 +100,9 @@ def launch_gui():
 
 
                 public_url, photo_name = upload_frame_to_supabase(image_bytes, base_name)
+
+                #FOR TESTING ONLY. COMMENT AFTER
+                #log_test_results_to_csv(photo_name, public_url, result_json)
 
 
                 # If we got an annotated_image, also upload it
@@ -100,20 +124,42 @@ def launch_gui():
                 if annotated_url:
                     msg += f"Annotated image: {annotated_url}\n"
                 detected = result_json.get("predictions") if isinstance(result_json, dict) else None
+                ## Added lines begin
+                #print("Predictions\n")
+                #print(result_json['predictions']) #list of dictionaries
+
+                ## Added lines end
                 if detected:
                     top = []
                     for p in detected:
                         cls = p.get("class") or p.get("label") or p.get("name")
                         conf = p.get("confidence") or p.get("score")
-                        top.append(f"{cls} ({conf})")
+                        
+                        # NEW: Get the source we just tagged
+                        src = p.get("source", "Roboflow") 
+                        top.append(f"{cls} ({conf:.3f}) [via {src}]") # Add the source tag here
+                    msg += "Detected: " + ", ".join(top)
+
+
                     msg += "Detected: " + ", ".join(top)
                 else:
                     msg += "No detections in response."
 
-                messagebox.showinfo("Result", msg)
+                #messagebox.showinfo("Result", msg)
+                # message box. remove comment if needed
+                print(f"DEBUG [{now()}] Worker: All tasks complete.")
 
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                #print(f"ERROR [{now()}] Worker crashed: {e}")
+                # Thread-safe way to show error in Tkinter
+                #window.after(0, lambda: messagebox.showerror("Error", str(e)))
+                #messagebox.showerror("Error", str(e)) COMMENTED
+                error_msg = str(e) # Convert the error to a string immediately
+                print(f"ERROR: {error_msg}")
+                
+                # We pass error_msg as a default argument to the lambda to "freeze" its value
+                window.after(0, lambda err=error_msg: messagebox.showerror("Error", err))
+
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -149,8 +195,15 @@ def launch_gui():
     tk.Button(auto_frame, text="Stop Auto-Capture", command=stop_auto_capture).pack(side="left")
 
     update_video_feed()
-    window.mainloop()
 
-    # cleanup
-    cap.release()
-    cv2.destroyAllWindows()
+    try:
+        window.mainloop()
+    finally:
+        # This force-stops everything when the window closes
+        auto_running = False 
+        cap.release()
+        cv2.destroyAllWindows()
+        print("\nDEBUG: Application closed and hardware released.")
+        # This forces the entire Python process (including stuck threads) to die immediately
+        os._exit(0)
+    

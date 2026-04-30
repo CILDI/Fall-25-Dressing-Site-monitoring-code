@@ -29,7 +29,10 @@ def _safe_upload_bytes(bucket: str, path: str, data: bytes):
         if hasattr(res, "error") and res.error:
             raise Exception(res.error)
         # Build and return public URL manually
-        SUPABASE_URL = "https://xvhnrqpcgitxvumllxiu.supabase.co"
+
+        # Use the variable already defined at the top of the file
+        SUPABASE_URL = os.getenv("SUPABASE_URL")
+        
         photo_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}"
         print("Uploaded to Supabase:", photo_url)
         return photo_url
@@ -47,6 +50,7 @@ def upload_frame_to_supabase(image_bytes: bytes, photo_name: str):
 
     # get_public_url also varies by client; handle both shapes
     try:
+        
         url_obj = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
         if isinstance(url_obj, dict):
             public_url = url_obj.get("publicURL") or url_obj.get("public_url")
@@ -61,7 +65,23 @@ def upload_frame_to_supabase(image_bytes: bytes, photo_name: str):
     return photo_url, photo_name
 
 
-
+def get_latest_metadata(patient_id):
+    """Fetches the most recent record for a specific patient."""
+    try:
+        # Query 'photos' table, order by time, and take the top 1
+        res = supabase.table("photos") \
+            .select("result_json") \
+            .eq("patient", patient_id) \
+            .order("created_at", desc=True) \
+            .limit(1) \
+            .execute()
+        
+        if res.data and len(res.data) > 0:
+            return res.data[0].get("result_json")
+        return None
+    except Exception as e:
+        print(f"Error fetching last record: {e}")
+        return None
 
 def upload_metadata_to_supabase(photo_url, photo_name, result_json=None, annotated_url=None):
     """ (Optional) Insert metadata into a Supabase table called 'photos' if you created one. """
